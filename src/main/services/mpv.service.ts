@@ -23,6 +23,7 @@ let CURRENT_PIPE_NAME = '\\\\.\\pipe\\iptv-mpv-ipc'
 const MPV_SEARCH_PATHS = [
   join(process.cwd(), 'resources', 'mpv', 'mpv.exe'),
   join(__dirname, '..', '..', 'resources', 'mpv', 'mpv.exe'),
+  join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'resources', 'mpv', 'mpv.exe'),
   'C:\\Program Files\\mpv\\mpv.exe',
   'C:\\Program Files (x86)\\mpv\\mpv.exe',
   join(process.env.LOCALAPPDATA || '', 'mpv', 'mpv.exe'),
@@ -76,8 +77,10 @@ export class MpvService extends EventEmitter {
         if (!err && stdout) {
           const firstPath = stdout.split('\n')[0].trim()
           this.mpvPath = firstPath
+          logDebug(`[MPV] Знайдено через дефолтний PATH: ${firstPath}`)
           resolve({ isAvailable: true, mpvPath: firstPath })
         } else {
+          logDebug(`[MPV] Не знайдено жодного mpv.exe`)
           resolve({ isAvailable: false })
         }
       })
@@ -89,8 +92,11 @@ export class MpvService extends EventEmitter {
    */
   async start(url: string, wid?: bigint): Promise<void> {
     if (!this.mpvPath) {
+      logDebug('[MPV] Помилка: MPV не знайдено перед стартом')
       throw new Error('MPV не знайдено. Встановіть mpv або вкажіть шлях у налаштуваннях.')
     }
+    
+    logDebug(`[MPV] Запускаємо з шляхом: ${this.mpvPath}`)
 
     // Зупиняємо попередній процес якщо є
     await this.stop()
@@ -140,6 +146,7 @@ export class MpvService extends EventEmitter {
 
     this.mpvProcess.on('exit', (code) => {
       console.log(`[MPV] процес завершено з кодом ${code}`)
+      logDebug(`[MPV] процес завершено з кодом ${code}`)
       this.isConnected = false
       this.mpvProcess = null
       this.emit('exit', code)
@@ -147,6 +154,7 @@ export class MpvService extends EventEmitter {
 
     this.mpvProcess.on('error', (err) => {
       console.error('[MPV] помилка процесу:', err)
+      logDebug(`[MPV] помилка процесу: ${err.message}`)
       this.emit('error', err)
     })
 
