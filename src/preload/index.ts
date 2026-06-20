@@ -66,6 +66,7 @@ const api = {
     volume: (vol: number) => ipcRenderer.invoke('mpv:volume', vol),
     state: () => ipcRenderer.invoke('mpv:state'),
     stop: () => ipcRenderer.invoke('mpv:stop'),
+    geometry: (rect: {x: number, y: number, width: number, height: number}) => ipcRenderer.invoke('mpv:geometry', rect),
     // Підписка на події mpv
     onEvent: (callback: (event: { type: string; error?: string }) => void) => {
       const handler = (_e: Electron.IpcRendererEvent, event: { type: string; error?: string }) =>

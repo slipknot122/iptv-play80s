@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
 import Hls from 'hls.js'
 import { usePlayerStore } from '../../store/player.store'
-import { PlayerOverlay } from './PlayerOverlay'
+import { PlayerControls } from './PlayerControls'
+import { EpgSidebar } from './EpgSidebar'
 import { cn } from '../../lib/utils'
 import { X, Minus } from 'lucide-react'
 
@@ -28,11 +29,28 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
   const hlsRef = useRef<Hls | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const syncTimerRef = useRef<any>(null)
-  const controlsTimerRef = useRef<any>(null)
-  const [showControls, setShowControls] = useState(true)
+  const [isEpgOpen, setIsEpgOpen] = useState(false)
   const [isHlsMode, setIsHlsMode] = useState(true) // Default: hls.js
 
   const isLive = currentItem?.type === 'live'
+
+  // ResizeObserver for mpv:geometry
+  useEffect(() => {
+    if (isHlsMode || !containerRef.current) return
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const rect = entry.target.getBoundingClientRect()
+        window.api.mpv.geometry({
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height
+        })
+      }
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [isHlsMode, isEpgOpen, playerState.isFullscreen])
 
   // Ініціалізація плеєра при зміні URL
   useEffect(() => {
@@ -162,18 +180,12 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
     }
   }, [updatePlayerState])
 
-  // Авто-приховання controls
   const resetControlsTimer = useCallback(() => {
-    setShowControls(true)
-    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current)
-    controlsTimerRef.current = setTimeout(() => {
-      if (playerState.isPlaying) setShowControls(false)
-    }, 3000)
-  }, [playerState.isPlaying])
+    // No longer needed as controls are statically at bottom
+  }, [])
 
   const handleMouseMove = useCallback(() => {
-    resetControlsTimer()
-  }, [resetControlsTimer])
+  }, [])
 
   // Синхронізація pause/play зі стора на відеоелемент (HLS)
   useEffect(() => {
@@ -287,7 +299,6 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
         hlsRef.current.destroy()
       }
       if (syncTimerRef.current) clearInterval(syncTimerRef.current)
-      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current)
     }
   }, [])
 
@@ -297,9 +308,9 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
   if (isMini) {
     return (
       <div
+        ref={containerRef}
         className="fixed bottom-4 right-4 w-72 h-40 rounded-xl overflow-hidden shadow-2xl
                    border border-border/30 z-50 group"
-        onMouseMove={handleMouseMove}
       >
         {isHlsMode ? (
           <video
@@ -315,8 +326,7 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
         )}
         {/* Mini controls */}
         <div className={cn(
-          'absolute inset-0 bg-black/50 flex items-end justify-between p-2 transition-opacity',
-          showControls ? 'opacity-100' : 'opacity-0'
+          'absolute inset-0 bg-black/50 flex items-end justify-between p-2 transition-opacity opacity-0 group-hover:opacity-100'
         )}>
           <p className="text-white text-xs font-medium truncate flex-1">{currentItem.name}</p>
           <div className="flex gap-1">
@@ -335,57 +345,87 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
   // Повноекранний плеєр
   return (
     <div
-      ref={containerRef}
       className={cn(
-        'absolute inset-0 bg-black z-40 flex flex-col',
+        'absolute inset-0 bg-bg-primary z-40 flex flex-col',
         playerState.isFullscreen && 'fixed z-[9999]'
       )}
-      onMouseMove={handleMouseMove}
-      onClick={resetControlsTimer}
     >
-      {/* Відео елемент (HLS режим) */}
-      {isHlsMode && (
-        <video
-          ref={videoRef}
-          className="w-full h-full object-contain"
-          autoPlay
-          playsInline
-        />
-      )}
-
-      {/* MPV режим — чорний фон (mpv рендерить через HWND) */}
-      {!isHlsMode && (
-        <div className="w-full h-full bg-black" />
-      )}
-
-      {/* Overlay з інформацією та controls */}
-      <PlayerOverlay
-        item={currentItem}
-        isVisible={showControls}
-      />
-
-      {/* Кнопки закрити / міні */}
-      <div
-        className={cn(
-          'absolute top-4 right-4 flex gap-2 transition-opacity duration-200',
-          showControls ? 'opacity-100' : 'opacity-0'
-        )}
-      >
-        <button
-          onClick={toggleMiniPlayer}
-          className="glass btn-icon rounded-lg"
-          title="Міні-плеєр"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-        <button
-          onClick={stop}
-          className="glass btn-icon rounded-lg hover:bg-error/20 hover:text-error"
-          title="Закрити плеєр (Esc)"
-        >
-          <X className="w-4 h-4" />
-        </button>
+      {/* Top Bar (safe from MPV OS window overlap) */}
+      <div className="flex-none h-12 bg-bg-secondary border-b border-border/30 flex items-center justify-between px-4 z-50">
+        <h3 className="text-white text-sm font-medium truncate pr-4">{currentItem.name}</h3>
+        <div className="flex gap-2 shrink-0">
+          <button onClick={toggleMiniPlayer} className="glass btn-icon rounded-lg" title="Міні-плеєр"><Minus className="w-4 h-4" /></button>
+          <button onClick={stop} className="glass btn-icon rounded-lg hover:bg-error/20 hover:text-error" title="Закрити плеєр (Esc)"><X className="w-4 h-4" /></button>
+        </div>
       </div>
+
+      {/* Основна область: Відео + Сайдбар */}
+      <div className="flex flex-1 overflow-hidden relative">
+        <div ref={containerRef} className="flex-1 bg-black relative">
+          {/* Відео елемент (HLS режим) */}
+          {isHlsMode && (
+            <video
+              ref={videoRef}
+              className="w-full h-full object-contain"
+              autoPlay
+              playsInline
+            />
+          )}
+
+          {/* MPV режим — чорний фон (mpv рендерить через HWND) */}
+          {!isHlsMode && (
+            <div className="w-full h-full bg-black" />
+          )}
+
+          {/* Інформація про канал (лише у віконному режимі для HLS, бо для MPV є OSC) */}
+          {isHlsMode && (
+            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-4 pointer-events-none transition-opacity">
+              <div className="flex items-start gap-3">
+                {currentItem.logo && (
+                  <img
+                    src={currentItem.logo}
+                    alt={currentItem.name}
+                    className="w-10 h-10 rounded-lg object-contain bg-bg-hover flex-shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                )}
+                <div>
+                  <h3 className="text-white font-bold text-base leading-tight">{currentItem.name}</h3>
+                  {currentItem.type === 'live' && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-white/80 text-xs font-medium">LIVE</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Бічна панель EPG */}
+        {isEpgOpen && (currentItem.type === 'live' || currentItem.type === 'catchup') && !playerState.isFullscreen && (
+          <div className="w-80 flex-shrink-0 bg-bg-secondary border-l border-border/30 z-50 overflow-hidden">
+            <EpgSidebar
+              channelId={currentItem.type === 'catchup' ? currentItem.id.split('_archive_')[0] : currentItem.id}
+              providerId={currentItem.providerId}
+              onClose={() => setIsEpgOpen(false)}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Панель керування під відео (не показуємо у повноекранному режимі) */}
+      {!playerState.isFullscreen && (
+        <div className="flex-none retro-control-panel z-50 relative">
+          <PlayerControls 
+            isLive={currentItem.type === 'live'} 
+            onEpgClick={isLive ? () => setIsEpgOpen(!isEpgOpen) : undefined}
+            isEpgOpen={isEpgOpen}
+          />
+        </div>
+      )}
 
       {/* Loading overlay */}
       {playerState.isLoading && (

@@ -43,6 +43,7 @@ interface Window {
       volume: (vol: number) => Promise<{ success: boolean }>
       state: () => Promise<{ success: boolean; data?: { position: number; duration: number; volume: number; paused: boolean; isRunning: boolean } }>
       stop: () => Promise<{ success: boolean }>
+      geometry: (rect: {x: number, y: number, width: number, height: number}) => Promise<void>
       onEvent: (callback: (event: { type: string; error?: string }) => void) => () => void
     }
     settings: {

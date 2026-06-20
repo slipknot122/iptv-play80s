@@ -39,7 +39,11 @@ function getXtreamService(providerId: string): XtreamService {
   return xtreamServiceCache.get(providerId)!
 }
 
+let lastMpvRect = {x: 0, y: 0, width: 0, height: 0}
+
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
+
+  ipcMain.handle('window:close', () => mainWindow.close())
 
   // ========== ПРОВАЙДЕРИ ==========
 
@@ -412,16 +416,58 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   })
 
   /** Запуск відтворення через mpv */
-  ipcMain.handle('mpv:play', async (_e, url: string, widBuffer?: number[]) => {
+  ipcMain.handle('mpv:play', async (_e, url: string) => {
     try {
-      let wid: bigint | undefined
-      if (widBuffer && widBuffer.length >= 4) {
-        wid = BigInt(Buffer.from(widBuffer).readUInt32LE(0))
-      }
-      await mpvService.start(url, wid)
+      const bounds = mainWindow.getContentBounds()
+      const targetX = Math.round(bounds.x + lastMpvRect.x)
+      const targetY = Math.round(bounds.y + lastMpvRect.y)
+      const targetW = Math.round(lastMpvRect.width)
+      const targetH = Math.round(lastMpvRect.height)
+
+      const geometry = `${targetW}x${targetH}+${targetX}+${targetY}`
+
+      await mpvService.start(url, geometry)
+
       return { success: true }
     } catch (err) {
       return { success: false, error: (err as Error).message }
+    }
+  })
+
+  // Continuously update MPV window bounds when mainWindow moves or resizes
+  const syncMpvBounds = () => {
+    if (!mpvService.isConnected || lastMpvRect.width === 0) return
+    const bounds = mainWindow.getContentBounds()
+    const targetX = Math.round(bounds.x + lastMpvRect.x)
+    const targetY = Math.round(bounds.y + lastMpvRect.y)
+    const targetW = Math.round(lastMpvRect.width)
+    const targetH = Math.round(lastMpvRect.height)
+    mpvService.updateGeometry(`${targetW}x${targetH}+${targetX}+${targetY}`)
+  }
+
+  mainWindow.on('move', syncMpvBounds)
+  mainWindow.on('resize', syncMpvBounds)
+  mainWindow.on('minimize', () => mpvService.setMinimized(true))
+  mainWindow.on('restore', () => mpvService.setMinimized(false))
+
+  ipcMain.handle('mpv:geometry', (_e, rect: {x: number, y: number, width: number, height: number}) => {
+    if (
+      lastMpvRect.x === rect.x &&
+      lastMpvRect.y === rect.y &&
+      lastMpvRect.width === rect.width &&
+      lastMpvRect.height === rect.height
+    ) {
+      return
+    }
+    lastMpvRect = rect
+    
+    if (mpvService.isConnected) {
+      const bounds = mainWindow.getContentBounds()
+      const targetX = Math.round(bounds.x + lastMpvRect.x)
+      const targetY = Math.round(bounds.y + lastMpvRect.y)
+      const targetW = Math.round(lastMpvRect.width)
+      const targetH = Math.round(lastMpvRect.height)
+      mpvService.updateGeometry(`${targetW}x${targetH}+${targetX}+${targetY}`)
     }
   })
 
@@ -537,5 +583,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   mpvService.on('pause', () => mainWindow.webContents.send('mpv:event', { type: 'pause' }))
   mpvService.on('ended', () => mainWindow.webContents.send('mpv:event', { type: 'ended' }))
   mpvService.on('error', (err) => mainWindow.webContents.send('mpv:event', { type: 'error', error: err.message }))
-  mpvService.on('exit', () => mainWindow.webContents.send('mpv:event', { type: 'exit' }))
+  mpvService.on('exit', () => {
+    mainWindow.webContents.send('mpv:event', { type: 'exit' })
+  })
 }

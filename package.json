@@ -1,6 +1,6 @@
 {
   "name": "iptv-player",
-  "version": "1.0.0",
+  "version": "1.0.5-alpha",
   "description": "Десктопний IPTV плеєр на базі Electron + React + TypeScript",
   "main": "./out/main/index.js",
   "author": "IPTV Player",

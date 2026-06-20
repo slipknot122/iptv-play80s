@@ -90,7 +90,7 @@ export class MpvService extends EventEmitter {
   /**
    * Запуск mpv процесу
    */
-  async start(url: string, wid?: bigint): Promise<void> {
+  async start(url: string, geometry?: string): Promise<void> {
     if (!this.mpvPath) {
       logDebug('[MPV] Помилка: MPV не знайдено перед стартом')
       throw new Error('MPV не знайдено. Встановіть mpv або вкажіть шлях у налаштуваннях.')
@@ -98,21 +98,22 @@ export class MpvService extends EventEmitter {
     
     logDebug(`[MPV] Запускаємо з шляхом: ${this.mpvPath}`)
 
-    // Зупиняємо попередній процес якщо є
-    await this.stop()
+    if (this.isRunning) {
+      await this.stop()
+    }
 
     CURRENT_PIPE_NAME = `\\\\.\\pipe\\iptv_player_mpv_ipc_${Date.now()}`
 
     const args: string[] = [
       url,
-      '--no-terminal',
       '--no-border',
-      '--no-osc',                      // вимикаємо стандартний OSD
-      '--no-input-default-bindings',   // вимикаємо стандартні прив'язки клавіш
+      '--ontop',
+      `--geometry=${geometry}`,
       `--input-ipc-server=${CURRENT_PIPE_NAME}`,
       '--idle=yes',
       '--volume=100',
       '--keep-open=yes',
+      '--vo=gpu',
       '--hwdec=auto',
       '--network-timeout=60',
       '--stream-lavf-o=timeout=60000000',
@@ -123,28 +124,25 @@ export class MpvService extends EventEmitter {
       '--http-header-fields=X-Forwarded-For: 46.118.22.33,X-Real-IP: 46.118.22.33'
     ]
 
-    // Embedding у Electron вікно через HWND
-    if (wid) {
-      args.push(`--wid=${wid.toString()}`)
-    }
-
     this.mpvProcess = spawn(this.mpvPath, args, {
       detached: false,
       stdio: ['ignore', 'pipe', 'pipe']
     })
 
+    const logFile = join(app.getPath('desktop'), 'mpv-debug.log')
+    appendFileSync(logFile, `\n\n--- NEW SESSION ${new Date().toISOString()} ---\n`)
+    appendFileSync(logFile, `ARGS: ${args.join(' ')}\n`)
+
     this.mpvProcess.stdout?.on('data', (data: Buffer) => {
-      console.log('[MPV stdout]', data.toString())
+      appendFileSync(logFile, data.toString())
     })
 
     this.mpvProcess.stderr?.on('data', (data: Buffer) => {
-      const msg = data.toString()
-      if (!msg.includes('Cannot decode')) { // фільтруємо нешкідливі помилки
-        console.warn('[MPV stderr]', msg)
-      }
+      appendFileSync(logFile, data.toString())
     })
 
     this.mpvProcess.on('exit', (code) => {
+      appendFileSync(logFile, `\n--- EXIT CODE: ${code} ---\n`)
       console.log(`[MPV] процес завершено з кодом ${code}`)
       logDebug(`[MPV] процес завершено з кодом ${code}`)
       this.isConnected = false
@@ -337,8 +335,20 @@ export class MpvService extends EventEmitter {
   }
 
   /** Перемотування */
-  async seek(position: number, type: 'absolute' | 'relative' = 'absolute'): Promise<void> {
-    await this.sendCommand(['seek', position, type])
+  async seek(seconds: number): Promise<void> {
+    await this.sendCommand(['seek', seconds.toString()])
+  }
+
+  updateGeometry(geometry: string): void {
+    if (this.isConnected) {
+      this.sendCommand(['set_property', 'geometry', geometry]).catch(() => {})
+    }
+  }
+
+  setMinimized(minimized: boolean): void {
+    if (this.isConnected) {
+      this.sendCommand(['set_property', 'window-minimized', minimized ? 'yes' : 'no']).catch(() => {})
+    }
   }
 
   /** Гучність (0-100) */
