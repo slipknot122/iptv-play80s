@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+    <!-- Шлях або URL до вашого M3U плейлиста -->
+    <setting id="m3uPath" type="string">http://your-iptv-provider.com/playlist.m3u</setting>
+    <setting id="m3uType" type="int">1</setting> <!-- 1 означає інтернет-посилання (URL) -->
+    
+    <!-- Шлях або URL до телепрограми (EPG XMLTV) -->
+    <setting id="epgPath" type="string">http://your-iptv-provider.com/epg.xml.gz</setting>
+    <setting id="epgType" type="int">1</setting>
+
+    <!-- Увімкнути кешування плейлиста для швидшого запуску -->
+    <setting id="cacheM3U" type="bool">true</setting>
+</settings>

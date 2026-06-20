@@ -1,0 +1,430 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   IPTV Player — Глобальні стилі та CSS змінні
+   Темна тема у стилі TiviMate
+   ============================================================ */
+
+@layer base {
+  * {
+    cursor: url('../assets/stick.png'), auto !important;
+  }
+
+  :root {
+    /* shadcn/ui CSS змінні (темна тема) */
+    --background: 222 47% 7%;
+    --foreground: 213 31% 91%;
+    --card: 222 40% 13%;
+    --card-foreground: 213 31% 91%;
+    --popover: 222 40% 10%;
+    --popover-foreground: 213 31% 91%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 40% 17%;
+    --secondary-foreground: 213 31% 91%;
+    --muted: 222 40% 17%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 239 84% 67%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 40% 20%;
+    --input: 222 40% 17%;
+    --ring: 239 84% 67%;
+    --radius: 0.6rem;
+
+    /* Кастомні кольори IPTV */
+    --bg-primary: #0F1117;
+    --bg-secondary: #1A1D27;
+    --bg-tertiary: #1E2130;
+    --bg-card: #252838;
+    --bg-hover: #2D3148;
+    --accent-color: #6366F1;
+    --accent-hover: #4F46E5;
+    --text-primary: #E2E8F0;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --error: #EF4444;
+    
+    /* Sidebar */
+    --sidebar-width: 220px;
+    --sidebar-collapsed-width: 64px;
+    
+    /* Перехід */
+    --transition: 0.2s ease;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 10px;
+    transition: background var(--transition);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.6);
+  }
+
+  /* Виділення тексту */
+  ::selection {
+    background: rgba(99, 102, 241, 0.3);
+    color: var(--text-primary);
+  }
+}
+
+@layer components {
+  /* ----- Карточки ----- */
+  .card-base {
+    @apply bg-bg-card rounded-lg border border-border/30 transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply card-base hover:border-accent/40 hover:bg-bg-hover hover:shadow-lg hover:shadow-accent/5 cursor-pointer;
+  }
+
+  /* ----- Кнопки ----- */
+  .btn-primary {
+    @apply bg-accent hover:bg-accent-hover text-white font-medium px-4 py-2 rounded-lg 
+           transition-all duration-200 hover:shadow-lg hover:shadow-accent/30 
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-bg-hover text-text-secondary hover:text-text-primary 
+           px-3 py-2 rounded-lg transition-all duration-200 active:scale-95;
+  }
+
+  .btn-icon {
+    @apply flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200
+           hover:bg-bg-hover text-text-secondary hover:text-text-primary active:scale-90;
+  }
+
+  /* ----- Inputs ----- */
+  .input-base {
+    @apply bg-bg-tertiary border border-border/40 rounded-lg px-3 py-2 text-text-primary
+           placeholder:text-text-muted focus:outline-none focus:border-accent/60 
+           focus:ring-1 focus:ring-accent/30 transition-all duration-200;
+  }
+
+  /* ----- Badges ----- */
+  .badge {
+    @apply text-xs px-2 py-0.5 rounded-full font-medium;
+  }
+
+  .badge-accent {
+    @apply badge bg-accent/20 text-accent;
+  }
+
+  .badge-success {
+    @apply badge bg-success/20 text-success;
+  }
+
+  .badge-muted {
+    @apply badge bg-bg-hover text-text-muted;
+  }
+
+  /* ----- Sidebar Item styles removed ----- */
+
+  /* ----- Канал card ----- */
+  .channel-card {
+    @apply flex flex-col bg-bg-card rounded-lg border border-border/20 overflow-hidden
+           cursor-pointer transition-all duration-200 
+           hover:border-accent/40 hover:bg-bg-hover hover:shadow-md hover:shadow-accent/5
+           active:scale-95;
+  }
+
+  .channel-card.active {
+    @apply border-accent bg-accent/10 shadow-lg shadow-accent/20;
+  }
+
+    /* ----- Movie/Series card (Neon) ----- */
+    .media-card {
+        @apply relative bg-transparent rounded-lg overflow-hidden cursor-pointer
+               transition-all duration-300 border-[2px] border-neon-cyan/30
+               hover:-translate-y-1 active:scale-95;
+      }
+    .media-card:hover {
+        animation: neon-shimmer-colors 2s infinite linear;
+    }
+  
+    .media-card img {
+      @apply transition-all duration-300 w-full h-full object-cover;
+    }
+    .media-card:hover img {
+      transform: scale(1.05);
+      filter: contrast(1.1) brightness(1.1);
+    }
+  
+    .media-card .badge {
+      @apply bg-[rgba(0,243,255,0.2)] border border-neon-cyan text-white shadow-[0_0_10px_rgba(0,243,255,0.3)] font-special;
+    }
+
+  /* ----- Скелет завантаження ----- */
+  .skeleton {
+    @apply bg-[#222426] rounded animate-pulse;
+  }
+
+  /* ----- Glassmorphism (Metal) ----- */
+  .glass {
+    @apply bg-[#1a1c1e]/90 backdrop-blur-md border border-[#333639];
+  }
+
+  /* ----- Video player overlay ----- */
+  .player-overlay {
+    @apply absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/20
+           flex flex-col justify-between p-4;
+  }
+
+  /* ----- EPG progress bar ----- */
+  .epg-progress {
+    @apply h-0.5 bg-bg-hover rounded-full overflow-hidden;
+  }
+
+  .epg-progress-fill {
+    @apply h-full bg-accent rounded-full transition-all duration-1000;
+  }
+
+  /* ----- Категорія pill ----- */
+  .category-pill {
+    @apply px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer
+           bg-bg-card border border-border/30 text-text-secondary
+           hover:border-accent/40 hover:text-text-primary hover:bg-bg-hover
+           transition-all duration-200 whitespace-nowrap select-none;
+  }
+
+  .category-pill.active {
+    @apply bg-accent/15 border-accent/50 text-accent;
+  }
+
+  /* ----- Тост notification ----- */
+  .toast-container {
+    @apply fixed bottom-4 right-4 z-50 flex flex-col gap-2;
+  }
+}
+
+@layer utilities {
+  /* Truncate текст */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Приховати scrollbar але дозволити scroll */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400;
+  }
+
+  /* Glow ефект для активних елементів */
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  }
+
+  /* Анімація появи */
+  .animate-in {
+    @apply animate-fade-in;
+  }
+}
+
+/* Повноекранний режим */
+:fullscreen .sidebar-panel {
+  display: none;
+}
+
+/* Drag region для titlebar */
+.titlebar-drag {
+  -webkit-app-region: drag;
+}
+
+.titlebar-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ============================================================
+   80s Neon Synthwave Design
+   ============================================================ */
+
+.synthwave-bg {
+  @apply relative overflow-hidden bg-neon-bg font-special;
+}
+
+/* 3D Grid */
+.synthwave-bg::before {
+  content: '';
+  position: absolute;
+  bottom: -40%;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(0, 243, 255, 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 243, 255, 0.4) 1px, transparent 1px);
+  background-size: 40px 40px;
+  transform: perspective(500px) rotateX(60deg);
+  animation: gridMove 2s linear infinite;
+  z-index: 0;
+  pointer-events: none;
+  border-top: 2px solid #ff00ff;
+  box-shadow: 0 -10px 40px #ff00ff;
+}
+
+@keyframes gridMove {
+  0% { transform: perspective(500px) rotateX(60deg) translateY(0); }
+  100% { transform: perspective(500px) rotateX(60deg) translateY(40px); }
+}
+
+/* Synthwave Sun */
+.synthwave-sun {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(to bottom, #ffe600 0%, #ff00ff 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 50px #ff00ff, 0 0 100px #ffe600;
+  z-index: 0;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, black 50%, transparent 50%, transparent 55%, black 55%, black 65%, transparent 65%, transparent 72%, black 72%, black 85%, transparent 85%);
+  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 50%, transparent 55%, black 55%, black 65%, transparent 65%, transparent 72%, black 72%, black 85%, transparent 85%);
+}
+
+  @keyframes neon-shimmer-colors {
+    0% {
+      border-color: #00f3ff;
+      box-shadow: 0 0 12px rgba(0, 243, 255, 0.4), inset 0 0 8px rgba(0, 243, 255, 0.2);
+    }
+    33% {
+      border-color: #ff00ff;
+      box-shadow: 0 0 12px rgba(255, 0, 255, 0.4), inset 0 0 8px rgba(255, 0, 255, 0.2);
+    }
+    66% {
+      border-color: #bc13fe;
+      box-shadow: 0 0 12px rgba(188, 19, 254, 0.4), inset 0 0 8px rgba(188, 19, 254, 0.2);
+    }
+    100% {
+      border-color: #00f3ff;
+      box-shadow: 0 0 12px rgba(0, 243, 255, 0.4), inset 0 0 8px rgba(0, 243, 255, 0.2);
+    }
+  }
+
+  /* Metal Panels -> Neon Panels */
+  .neon-panel {
+    @apply relative rounded-xl z-10;
+    background: rgba(11, 0, 26, 0.7);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(0, 243, 255, 0.3);
+    animation: neon-shimmer-colors 4s infinite linear;
+  }
+
+  .sidebar-fog {
+    position: absolute;
+    bottom: -20%;
+    left: -20%;
+    width: 140%;
+    height: 60%;
+    background: 
+      radial-gradient(circle at 20% 80%, rgba(255, 0, 255, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(0, 243, 255, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 50% 100%, rgba(188, 19, 254, 0.2) 0%, transparent 60%);
+    filter: blur(20px);
+    animation: fog-drift 10s infinite alternate ease-in-out;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes fog-drift {
+    0% { transform: translate(0, 5%) scale(1); }
+    50% { transform: translate(-5%, 0) scale(1.1); }
+    100% { transform: translate(5%, -5%) scale(1); }
+  }
+
+  /* Neon Button */
+  .neon-button {
+    @apply relative rounded-lg font-special uppercase tracking-wider text-xs font-bold overflow-hidden;
+    transition: background 0.3s, color 0.3s, text-shadow 0.3s, transform 0.3s;
+    border: 2px solid rgba(0, 243, 255, 0.3);
+    background: rgba(0, 243, 255, 0.05);
+    color: rgba(255,255,255,0.8);
+    transform: skewX(-5deg);
+    animation: neon-shimmer-colors 3s infinite linear;
+  }
+  
+  .neon-button:hover, .neon-button.active {
+    background: rgba(0, 243, 255, 0.2);
+    color: #fff;
+    text-shadow: 0 0 8px #00f3ff;
+    animation: neon-shimmer-colors 1.5s infinite linear;
+  }
+
+/* Neon Theme Global Overrides */
+.neon-theme {
+  @apply text-neon-text-primary font-special;
+}
+.neon-theme .bg-bg-secondary {
+  @apply bg-transparent;
+}
+.neon-theme .border-border\/20,
+.neon-theme .border-border\/10,
+.neon-theme .border-b {
+  @apply border-neon-magenta border-opacity-30;
+}
+.neon-theme .text-text-primary,
+.neon-theme h2,
+.neon-theme h3 {
+  @apply text-white font-special tracking-widest uppercase;
+  text-shadow: 0 0 8px #ff00ff;
+}
+.neon-theme .text-text-secondary {
+  @apply text-neon-cyan opacity-80;
+}
+.neon-theme .bg-bg-tertiary {
+  @apply bg-neon-panel border-neon-cyan;
+}
+.neon-theme .input-base {
+  @apply bg-[rgba(0,0,0,0.5)] border-neon-magenta text-white placeholder:text-neon-cyan focus:border-neon-cyan focus:ring-neon-cyan;
+  box-shadow: 0 0 10px rgba(255,0,255,0.2);
+}
