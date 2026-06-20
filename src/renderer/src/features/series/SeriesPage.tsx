@@ -75,14 +75,19 @@ export function SeriesPage(): React.ReactElement {
 
   const handlePlayEpisode = async (episodeId: string, extension: string) => {
     if (!selectedSeries || !activeProviderId) return
-    const providers = await window.api.providers.list()
-    const provider = providers.find((p: { id: string }) => p.id === activeProviderId)
-    if (!provider || provider.type !== 'xtream') return
-    const xtream = provider as XtreamProvider
-
-    const url = `${xtream.host}:${xtream.port}/series/${xtream.username}/${xtream.password}/${episodeId}.${extension}`
     const season = selectedSeason ? parseInt(selectedSeason) : 1
     const episode = seriesInfo?.episodes[selectedSeason || '1']?.find((e) => e.id === episodeId)
+
+    let url = episode?.streamUrl
+    if (!url) {
+      const providers = await window.api.providers.list()
+      const provider = providers.find((p: { id: string }) => p.id === activeProviderId)
+      if (!provider || provider.type !== 'xtream') return
+      const xtream = provider as XtreamProvider
+      const cleanHost = xtream.host.replace(/\/+$/, '')
+      const portStr = xtream.port ? `:${xtream.port}` : ''
+      url = `${cleanHost}${portStr}/series/${xtream.username}/${xtream.password}/${episodeId}.${extension || 'mkv'}`
+    }
 
     const resume = await window.api.resume.get(episodeId)
 

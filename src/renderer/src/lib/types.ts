@@ -188,6 +188,7 @@ export interface SeriesEpisode {
   episodeNum: number
   title?: string
   containerExtension: string
+  streamUrl?: string
   info?: {
     duration?: string
     duration_secs?: number

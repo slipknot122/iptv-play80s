@@ -58,7 +58,8 @@ export class XtreamService {
     this.provider = provider
     // Очищаємо host від зайвих слешів в кінці
     const cleanHost = provider.host.replace(/\/+$/, '')
-    this.baseUrl = `${cleanHost}:${provider.port}`
+    const portStr = provider.port ? `:${provider.port}` : ''
+    this.baseUrl = `${cleanHost}${portStr}`
     this.apiUrl = `${this.baseUrl}/player_api.php?username=${provider.username}&password=${provider.password}`
 
     console.log('[XtreamService] baseUrl:', this.baseUrl)
@@ -260,6 +261,7 @@ export class XtreamService {
         episodeNum: ep.episode_num,
         title: ep.title,
         containerExtension: ep.container_extension,
+        streamUrl: this.buildSeriesStreamUrl(ep.id, ep.container_extension),
         info: ep.info
       }))
     }
