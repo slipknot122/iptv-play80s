@@ -21,9 +21,9 @@ let CURRENT_PIPE_NAME = '\\\\.\\pipe\\iptv-mpv-ipc'
 
 // Можливі шляхи до mpv.exe на Windows
 const MPV_SEARCH_PATHS = [
+  join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'resources', 'mpv', 'mpv.exe'),
   join(process.cwd(), 'resources', 'mpv', 'mpv.exe'),
   join(__dirname, '..', '..', 'resources', 'mpv', 'mpv.exe'),
-  join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'resources', 'mpv', 'mpv.exe'),
   'C:\\Program Files\\mpv\\mpv.exe',
   'C:\\Program Files (x86)\\mpv\\mpv.exe',
   join(process.env.LOCALAPPDATA || '', 'mpv', 'mpv.exe'),
