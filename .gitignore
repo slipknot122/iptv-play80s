@@ -4,3 +4,8 @@ out
 .DS_Store
 .eslintcache
 *.log*
+resources/mpv/mpv.exe
+mpv.7z
+get-mpv.*
+release.json
+github_release.json
