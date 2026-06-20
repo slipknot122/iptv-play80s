@@ -107,11 +107,12 @@ export class MpvService extends EventEmitter {
       '--idle=yes',
       '--volume=100',
       '--keep-open=yes',
+      '--hwdec=auto',
       '--network-timeout=60',
       '--stream-lavf-o=timeout=60000000',
       '--cache=yes',
-      '--demuxer-max-bytes=150M',
-      '--demuxer-max-back-bytes=50M',
+      '--demuxer-max-bytes=500M',
+      '--demuxer-max-back-bytes=100M',
       '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       '--http-header-fields=X-Forwarded-For: 46.118.22.33,X-Real-IP: 46.118.22.33'
     ]
