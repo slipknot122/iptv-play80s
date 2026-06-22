@@ -53,7 +53,7 @@ export function LivePage(): React.ReactElement {
   return (
     <div className="flex h-full">
       {/* Список категорій */}
-      <div className="w-48 flex-shrink-0 bg-bg-secondary border-r border-border/20 overflow-y-auto no-scrollbar">
+      <div className="w-72 flex-shrink-0 bg-bg-secondary border-r border-border/20 overflow-y-auto no-scrollbar">
         <CategoryList
           categories={liveCategories}
           selected={selectedLiveCategory}

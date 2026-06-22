@@ -59,9 +59,9 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
     const initPlayer = async () => {
       // Перевірка наявності mpv
       const mpvStatus = await window.api.mpv.check()
-      console.log('[VideoPlayer] mpv status:', mpvStatus)
+      const isMpvAvailable = mpvStatus.success ? mpvStatus.data?.available : mpvStatus.available
 
-      if (mpvStatus.isAvailable) {
+      if (isMpvAvailable) {
         // MPV режим — mpv вже запущено з main process
         console.log('[VideoPlayer] Using mpv engine')
         setIsHlsMode(false)
@@ -346,22 +346,24 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
   return (
     <div
       className={cn(
-        'absolute inset-0 bg-bg-primary z-40 flex flex-col',
+        'absolute inset-0 bg-transparent z-40 flex flex-col',
         playerState.isFullscreen && 'fixed z-[9999]'
       )}
     >
       {/* Top Bar (safe from MPV OS window overlap) */}
-      <div className="flex-none h-12 bg-bg-secondary border-b border-border/30 flex items-center justify-between px-4 z-50">
-        <h3 className="text-white text-sm font-medium truncate pr-4">{currentItem.name}</h3>
-        <div className="flex gap-2 shrink-0">
-          <button onClick={toggleMiniPlayer} className="glass btn-icon rounded-lg" title="Міні-плеєр"><Minus className="w-4 h-4" /></button>
-          <button onClick={stop} className="glass btn-icon rounded-lg hover:bg-error/20 hover:text-error" title="Закрити плеєр (Esc)"><X className="w-4 h-4" /></button>
+      {!playerState.isFullscreen && (
+        <div className="flex-none h-12 bg-bg-secondary border-b border-border/30 flex items-center justify-between px-4 z-50">
+          <h3 className="text-white text-sm font-medium truncate pr-4">{currentItem.name}</h3>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={toggleMiniPlayer} className="glass btn-icon rounded-lg" title="Міні-плеєр"><Minus className="w-4 h-4" /></button>
+            <button onClick={stop} className="glass btn-icon rounded-lg hover:bg-error/20 hover:text-error" title="Закрити плеєр (Esc)"><X className="w-4 h-4" /></button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Основна область: Відео + Сайдбар */}
       <div className="flex flex-1 overflow-hidden relative">
-        <div ref={containerRef} className="flex-1 bg-black relative">
+        <div ref={containerRef} className="flex-1 bg-transparent relative">
           {/* Відео елемент (HLS режим) */}
           {isHlsMode && (
             <video
@@ -374,7 +376,7 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
 
           {/* MPV режим — чорний фон (mpv рендерить через HWND) */}
           {!isHlsMode && (
-            <div className="w-full h-full bg-black" />
+            <div className="w-full h-full bg-transparent" />
           )}
 
           {/* Інформація про канал (лише у віконному режимі для HLS, бо для MPV є OSC) */}
@@ -416,16 +418,17 @@ export function VideoPlayer({ isMini = false }: VideoPlayerProps): React.ReactEl
         )}
       </div>
 
-      {/* Панель керування під відео (не показуємо у повноекранному режимі) */}
-      {!playerState.isFullscreen && (
-        <div className="flex-none retro-control-panel z-50 relative">
-          <PlayerControls 
-            isLive={currentItem.type === 'live'} 
-            onEpgClick={isLive ? () => setIsEpgOpen(!isEpgOpen) : undefined}
-            isEpgOpen={isEpgOpen}
-          />
-        </div>
-      )}
+      {/* Панель керування */}
+      <div className={cn(
+        "flex-none retro-control-panel z-50 transition-opacity duration-300",
+        playerState.isFullscreen ? "absolute bottom-0 left-0 right-0 opacity-0 hover:opacity-100 bg-black/60 p-4" : "relative"
+      )}>
+        <PlayerControls 
+          isLive={currentItem.type === 'live'} 
+          onEpgClick={isLive ? () => setIsEpgOpen(!isEpgOpen) : undefined}
+          isEpgOpen={isEpgOpen}
+        />
+      </div>
 
       {/* Loading overlay */}
       {playerState.isLoading && (

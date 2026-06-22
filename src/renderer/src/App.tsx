@@ -22,7 +22,7 @@ export default function App(): React.ReactElement {
   const { loadSettings, settings } = useSettingsStore()
   const { loadFavorites, refreshAll } = useContentStore()
   const { activeSection, activeProviderId, setActiveProvider, setEpgSyncStatus } = useUIStore()
-  const { isVisible, isMiniPlayer } = usePlayerStore()
+  const { isVisible, isMiniPlayer, playerState } = usePlayerStore()
 
   // Початкова ініціалізація
   useEffect(() => {
@@ -105,12 +105,13 @@ export default function App(): React.ReactElement {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden synthwave-bg neon-theme p-4 gap-4 select-none relative">
-      <div className="synthwave-sun"></div>
+    <div className={`flex h-screen w-screen overflow-hidden neon-theme select-none relative ${!playerState.isFullscreen ? 'p-4 gap-4' : ''} ${isVisible && !isMiniPlayer ? 'bg-transparent' : 'synthwave-bg'}`}>
+      {!(isVisible && !isMiniPlayer) && <div className="synthwave-sun"></div>}
       
       {/* Ліва панель */}
-      <div className="relative z-20 w-[280px] flex flex-col neon-panel p-5 overflow-hidden">
-        <div className="sidebar-fog"></div>
+      {!playerState.isFullscreen && (
+        <div className={`relative z-20 w-[280px] flex flex-col p-5 overflow-hidden ${isVisible && !isMiniPlayer ? 'glass border-none' : 'neon-panel'}`}>
+          {!(isVisible && !isMiniPlayer) && <div className="sidebar-fog"></div>}
         {/* Логотип */}
         <div className="flex flex-col items-center justify-center py-4 mb-4 border-b border-neon-magenta border-opacity-50 relative z-10">
           <h1 className="font-special text-4xl font-bold tracking-widest text-[#fff] drop-shadow-[0_0_15px_#ff00ff]">
@@ -126,15 +127,16 @@ export default function App(): React.ReactElement {
           <Sidebar />
         </div>
       </div>
+      )}
 
       {/* Права панель (Контент) */}
-      <div className="flex-1 flex flex-col overflow-hidden relative neon-panel p-4">
+      <div className={`flex-1 flex flex-col overflow-hidden relative ${!playerState.isFullscreen ? 'p-4' : ''} ${isVisible && !isMiniPlayer ? 'bg-transparent' : 'neon-panel'}`}>
         
         {/* Основний "екран" */}
-        <div className="flex flex-1 overflow-hidden relative bg-transparent rounded-lg border border-neon-cyan/20">
+        <div className="flex flex-1 overflow-hidden relative bg-transparent rounded-lg">
           
           {/* Основний контент */}
-          <main className="flex-1 overflow-hidden relative z-10">
+          <main className={`flex-1 overflow-hidden relative z-10 ${isVisible && !isMiniPlayer ? 'hidden' : 'block'}`}>
             {renderSection()}
           </main>
 

@@ -79,7 +79,8 @@ export const usePlayerStore = create<PlayerStoreState>((set, get) => ({
 
     // Запускаємо mpv або hls.js
     const mpvStatus = await window.api.mpv.check()
-    const engine = mpvStatus.isAvailable ? 'mpv' : 'hls'
+    const isMpvAvailable = mpvStatus.success ? mpvStatus.data?.available : mpvStatus.available
+    const engine = isMpvAvailable ? 'mpv' : 'hls'
 
     if (engine === 'mpv') {
       try {
@@ -90,12 +91,15 @@ export const usePlayerStore = create<PlayerStoreState>((set, get) => ({
           res = await window.api.mpv.play(item.url)
         }
         
+        // Force UI to show video immediately
+        set({ playerState: { ...get().playerState, isLoading: false, isPlaying: true } })
+        
         // Перевіряємо чи користувач не натиснув stop поки ми чекали mpv
         if (get().currentItem?.id !== item.id) return
 
         if (!res.success) {
           set({
-            playerState: { ...get().playerState, isLoading: false, error: res.error }
+            playerState: { ...get().playerState, isLoading: false, error: (res as any).error || 'Failed to play' }
           })
           return
         }
@@ -204,11 +208,7 @@ export const usePlayerStore = create<PlayerStoreState>((set, get) => ({
 
   toggleFullscreen: () => {
     const isFullscreen = !get().playerState.isFullscreen
-    if (isFullscreen) {
-      document.documentElement.requestFullscreen?.()
-    } else {
-      document.exitFullscreen?.()
-    }
+    window.api.window.setFullscreen(isFullscreen)
     set((state) => ({
       playerState: { ...state.playerState, isFullscreen }
     }))
@@ -245,10 +245,12 @@ export const usePlayerStore = create<PlayerStoreState>((set, get) => ({
             playerState: {
               ...s.playerState,
               currentTime: position,
-              duration,
+              // Keep old duration if MPV returns 0 but we already know the duration
+              duration: duration > 0 ? duration : s.playerState.duration,
               volume,
               isPaused: paused,
-              isPlaying: isRunning && !paused
+              isPlaying: isRunning && !paused,
+              isLoading: !isRunning
             }
           }
         })

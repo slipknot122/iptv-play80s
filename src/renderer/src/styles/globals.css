@@ -73,7 +73,7 @@
 
   body {
     font-family: 'Inter', system-ui, sans-serif;
-    background-color: var(--bg-primary);
+    background-color: transparent;
     color: var(--text-primary);
     overflow: hidden;
     user-select: none;
