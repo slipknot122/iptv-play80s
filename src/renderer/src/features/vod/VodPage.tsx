@@ -4,9 +4,12 @@ import { useUIStore, usePlayerStore } from '../../store/player.store'
 import { SearchBar } from '../../components/SearchBar'
 import { CategoryList } from '../live/CategoryList'
 import { MovieSkeleton, ErrorMessage, EmptyState } from '../../components/ui/LoadingStates'
-import { Film, Heart, Star, Play } from 'lucide-react'
+import { Film, Heart, Star, Play, Download } from 'lucide-react'
 import { cn, FALLBACK_POSTER } from '../../lib/utils'
 import type { Movie, MovieInfo } from '../../lib/types'
+import { api } from '../../lib/api'
+import { save } from '@tauri-apps/plugin-dialog'
+import { useDownloadStore } from '../../store/download.store'
 
 // ============================================================
 // VodPage — Сторінка фільмів
@@ -30,6 +33,7 @@ export function VodPage(): React.ReactElement {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null)
   const [movieInfo, setMovieInfo] = useState<MovieInfo | null>(null)
   const [loadingInfo, setLoadingInfo] = useState(false)
+  const { downloads, removeDownload, initDownload } = useDownloadStore()
 
   useEffect(() => {
     if (!activeProviderId) return
@@ -75,6 +79,50 @@ export function VodPage(): React.ReactElement {
       totalDuration: resume?.duration
     })
     setSelectedMovie(null)
+  }
+
+  const handleDownload = async (movie: Movie) => {
+    // Запобігаємо повторному завантаженню
+    if (downloads[movie.streamUrl]) return
+    
+    try {
+      const isHls = movie.streamUrl.includes('.m3u8')
+      const ext = isHls ? 'mp4' : (movie.streamUrl.split('.').pop()?.split('?')[0] || 'mp4')
+      
+      const savePath = await save({
+        filters: [{ name: 'Video', extensions: [ext] }],
+        defaultPath: `${movie.name.replace(/[^a-z0-9а-яієїґ]/gi, '_').toLowerCase()}.${ext}`
+      })
+      
+      if (savePath) {
+        // Одразу показуємо прогрес-бар
+        initDownload(movie.streamUrl)
+        
+        // Отримуємо тривалість з movieInfo (для коректного прогресу HLS)
+        const duration = movieInfo?.info?.duration_secs 
+          || (movieInfo?.info?.duration ? parseFloat(movieInfo.info.duration) : 0) 
+          || 0
+        
+        if (isHls) {
+          await api.download.hls(movie.streamUrl, savePath, duration)
+        } else {
+          try {
+            await api.download.direct(movie.streamUrl, savePath)
+          } catch (err: any) {
+            const errStr = String(err)
+            if (errStr === 'canceled') throw err
+            console.log('Direct download failed, falling back to ffmpeg. Error:', err)
+            await api.download.hls(movie.streamUrl, savePath, duration)
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error("Download error:", e)
+      if (e !== 'canceled' && e?.message !== 'canceled' && String(e) !== 'canceled') {
+        alert(`Помилка завантаження: ${e}`)
+      }
+      removeDownload(movie.streamUrl)
+    }
   }
 
   const isLoading = moviesStatus === 'loading'
@@ -169,10 +217,34 @@ export function VodPage(): React.ReactElement {
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => handlePlay(selectedMovie)}
-                className="btn-primary flex items-center gap-2 flex-1"
+                className="btn-primary flex items-center gap-2 flex-1 justify-center"
               >
                 <Play className="w-4 h-4 fill-white" />
                 Дивитись
+              </button>
+              <button
+                onClick={() => handleDownload(selectedMovie)}
+                className="btn-secondary flex items-center gap-2 flex-1 justify-center relative overflow-hidden"
+                disabled={downloads[selectedMovie.streamUrl] && downloads[selectedMovie.streamUrl].progress < 100}
+              >
+                {downloads[selectedMovie.streamUrl] && downloads[selectedMovie.streamUrl].progress < 100 ? (
+                  <>
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 bg-accent/20" 
+                      style={{ width: `${Math.max(0, downloads[selectedMovie.streamUrl].progress)}%` }} 
+                    />
+                    <span className="relative z-10 text-xs">
+                      {downloads[selectedMovie.streamUrl].progress > 0 
+                        ? `${downloads[selectedMovie.streamUrl].progress.toFixed(1)}%` 
+                        : 'Завантаження...'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Завантажити
+                  </>
+                )}
               </button>
               <button
                 onClick={() => setSelectedMovie(null)}

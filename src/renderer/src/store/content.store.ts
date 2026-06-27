@@ -8,6 +8,7 @@ import type {
   SeriesCategory,
   LoadingStatus
 } from '../lib/types'
+import { useUIStore } from './player.store'
 
 // ============================================================
 // Store контенту (Live TV, VOD, Серіали)
@@ -58,6 +59,9 @@ interface ContentState {
   setSelectedVodCategory: (id: string | null) => void
   setSelectedSeriesCategory: (id: string | null) => void
   refreshAll: (providerId: string) => Promise<void>
+  
+  fetchCurrentXmltvPrograms: () => Promise<void>
+  syncProviderEpg: (providerId: string) => Promise<void>
 }
 
 export const useContentStore = create<ContentState>((set, get) => ({
@@ -120,6 +124,9 @@ export const useContentStore = create<ContentState>((set, get) => ({
           isFavorite: favoriteChannelIds.includes(ch.id)
         }))
         set({ channels, channelsStatus: 'success', lastUpdated: Date.now() })
+        
+        // Автоматично пробуємо підтягнути вже закешований EPG з бекенду
+        get().fetchCurrentXmltvPrograms()
       } else {
         console.error('[ContentStore] loadChannels failed:', result.error)
         set({ channelsStatus: 'error' })
@@ -262,5 +269,45 @@ export const useContentStore = create<ContentState>((set, get) => ({
       get().loadMovies(providerId, selectedVodCategory || undefined),
       get().loadSeriesList(providerId, selectedSeriesCategory || undefined)
     ])
+  },
+
+  fetchCurrentXmltvPrograms: async () => {
+    const { channels } = get()
+    if (!channels.length) return
+
+    const epgIds = Array.from(new Set(channels.map(c => c.epgId || c.name || c.id)))
+    const result = await window.api.epg.getCurrentXmltvPrograms(epgIds)
+    if (result.success && result.data) {
+      const newChannels = channels.map(ch => {
+        const idToLookup = ch.epgId || ch.name || ch.id
+        const programs = result.data![idToLookup]
+        if (programs && programs.length > 0) {
+          return {
+            ...ch,
+            currentProgram: programs[0],
+            nextProgram: programs[1]
+          }
+        }
+        return ch
+      })
+      set({ channels: newChannels })
+    }
+  },
+
+  syncProviderEpg: async (providerId) => {
+    const providers = await window.api.providers.list()
+    const p = providers.find(p => p.id === providerId)
+    if (p && p.epgUrl) {
+      useUIStore.getState().setEpgSyncStatus({ status: 'Syncing EPG...' })
+      const result = await window.api.epg.syncXmltv(p.epgUrl)
+      if (result.success) {
+        useUIStore.getState().setEpgSyncStatus({ status: 'Done', percent: 100 })
+        setTimeout(() => useUIStore.getState().setEpgSyncStatus(null), 2000)
+        await get().fetchCurrentXmltvPrograms()
+      } else {
+        useUIStore.getState().setEpgSyncStatus({ status: 'Failed' })
+        setTimeout(() => useUIStore.getState().setEpgSyncStatus(null), 3000)
+      }
+    }
   }
 }))

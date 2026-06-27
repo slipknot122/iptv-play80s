@@ -18,7 +18,7 @@ export interface ParsedM3U {
  */
 export async function fetchAndParseM3U(url: string): Promise<ParsedM3U> {
   const res = await fetch(url)
-  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+  if (!res.ok) throw new Error(`HTTP error ${res.status}`)
   const text = await res.text()
   return parseM3UString(text)
 }

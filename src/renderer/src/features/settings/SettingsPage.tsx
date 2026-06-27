@@ -104,6 +104,7 @@ export function SettingsPage(): React.ReactElement {
           )}
         </SettingsSection>
 
+
         {/* Секція оновлення */}
         <SettingsSection icon={<RefreshCw className="w-4 h-4" />} title="Автооновлення">
           <SettingsRow

@@ -13,6 +13,25 @@ export function formatTime(timestamp: number): string {
   return format(new Date(timestamp), 'HH:mm')
 }
 
+/** Декодування Base64, якщо рядок закодований (для Xtream EPG) */
+export function decodeBase64(str: string): string {
+  if (!str) return str;
+  try {
+    // Basic check: length multiple of 4, only valid base64 chars
+    if (/^[A-Za-z0-9+/]+={0,2}$/.test(str) && str.length % 4 === 0) {
+      const binString = atob(str);
+      const bytes = new Uint8Array(binString.length);
+      for (let i = 0; i < binString.length; i++) {
+        bytes[i] = binString.charCodeAt(i);
+      }
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+  } catch {
+    // Ignore error, return original string
+  }
+  return str;
+}
+
 /** Форматування дати (ДД.ММ.РРРР) */
 export function formatDate(timestamp: number): string {
   return format(new Date(timestamp), 'dd.MM.yyyy')

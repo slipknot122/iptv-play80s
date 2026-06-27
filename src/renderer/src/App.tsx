@@ -1,5 +1,7 @@
 import React, { useEffect, useCallback } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { useProvidersStore, useSettingsStore } from './store/providers.store'
+
 import { useContentStore } from './store/content.store'
 import { useUIStore, usePlayerStore } from './store/player.store'
 import { Sidebar } from './components/Sidebar'
@@ -12,6 +14,8 @@ import { ProvidersPage } from './features/providers/ProvidersPage'
 import { VideoPlayer } from './features/player/VideoPlayer'
 import { ToastContainer } from './components/ui/ToastContainer'
 import { EpgProgressToast } from './components/ui/EpgProgressToast'
+import { GlobalDownloads } from './components/ui/GlobalDownloads'
+import { useDownloadStore } from './store/download.store'
 
 // ============================================================
 // Головний компонент застосунку
@@ -23,6 +27,7 @@ export default function App(): React.ReactElement {
   const { loadFavorites, refreshAll } = useContentStore()
   const { activeSection, activeProviderId, setActiveProvider, setEpgSyncStatus } = useUIStore()
   const { isVisible, isMiniPlayer, playerState } = usePlayerStore()
+  const { setDownloadProgress } = useDownloadStore()
 
   // Початкова ініціалізація
   useEffect(() => {
@@ -32,15 +37,60 @@ export default function App(): React.ReactElement {
     init()
   }, [])
 
-  // Підписка на події прогресу EPG
+
+
+  // Підписка на події прогресу EPG та Завантажень
   useEffect(() => {
+    const cleanups: (() => void)[] = []
+    let mounted = true
+    
     if (window.api?.epg?.onProgress) {
-      const cleanup = window.api.epg.onProgress((data) => {
+      cleanups.push(window.api.epg.onProgress((data) => {
         setEpgSyncStatus(data)
-      })
-      return cleanup
+      }))
     }
-  }, [setEpgSyncStatus])
+    
+    // download.onProgress та mpv.onEvent повертають Promise<UnlistenFn>
+    const setupAsyncListeners = async () => {
+      if (window.api?.download?.onProgress) {
+        const unlisten = await window.api.download.onProgress((data) => {
+          if (mounted) setDownloadProgress(data)
+        })
+        if (mounted) cleanups.push(unlisten)
+        else unlisten() // якщо вже розмонтовано — одразу відписатись
+      }
+      
+      if (window.api?.mpv?.onEvent) {
+        const { updatePlayerState } = usePlayerStore.getState()
+        const unlisten = await window.api.mpv.onEvent((event) => {
+          if (!mounted) return
+          switch (event.type) {
+            case 'play':
+              updatePlayerState({ isPlaying: true, isPaused: false, isLoading: false })
+              break
+            case 'pause':
+              updatePlayerState({ isPaused: true, isPlaying: false })
+              break
+            case 'ended':
+              updatePlayerState({ isPlaying: false, isLoading: false })
+              break
+            case 'error':
+              updatePlayerState({ isLoading: false, error: event.error })
+              break
+          }
+        })
+        if (mounted) cleanups.push(unlisten)
+        else unlisten()
+      }
+    }
+    
+    setupAsyncListeners()
+    
+    return () => {
+      mounted = false
+      cleanups.forEach(c => c())
+    }
+  }, [setEpgSyncStatus, setDownloadProgress])
 
   // Встановлення активного провайдера при завантаженні
   useEffect(() => {
@@ -68,28 +118,6 @@ export default function App(): React.ReactElement {
   useEffect(() => {
     return setupAutoRefresh()
   }, [setupAutoRefresh])
-
-  // Підписка на події mpv (оновлення стану плеєра)
-  useEffect(() => {
-    const { updatePlayerState } = usePlayerStore.getState()
-    const unsubscribe = window.api.mpv.onEvent((event) => {
-      switch (event.type) {
-        case 'play':
-          updatePlayerState({ isPlaying: true, isPaused: false, isLoading: false })
-          break
-        case 'pause':
-          updatePlayerState({ isPaused: true, isPlaying: false })
-          break
-        case 'ended':
-          updatePlayerState({ isPlaying: false, isLoading: false })
-          break
-        case 'error':
-          updatePlayerState({ isLoading: false, error: event.error })
-          break
-      }
-    })
-    return unsubscribe
-  }, [])
 
   // Рендер активної секції
   const renderSection = () => {
@@ -146,6 +174,7 @@ export default function App(): React.ReactElement {
           {/* Toast повідомлення */}
           <ToastContainer />
           <EpgProgressToast />
+          <GlobalDownloads />
         </div>
       </div>
     </div>

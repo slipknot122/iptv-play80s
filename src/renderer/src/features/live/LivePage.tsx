@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useContentStore } from '../../store/content.store'
 import { useUIStore } from '../../store/player.store'
 import { SearchBar } from '../../components/SearchBar'
 import { ChannelCard } from './ChannelCard'
 import { CategoryList } from './CategoryList'
+import { EpgModal } from '../../components/ui/EpgModal'
 import { ChannelSkeleton, ErrorMessage, EmptyState } from '../../components/ui/LoadingStates'
 import { Tv } from 'lucide-react'
 
@@ -24,6 +25,7 @@ export function LivePage(): React.ReactElement {
   } = useContentStore()
 
   const { activeProviderId, searchQuery } = useUIStore()
+  const [epgChannel, setEpgChannel] = useState<any>(null)
 
   // Завантаження при зміні провайдера
   useEffect(() => {
@@ -90,9 +92,9 @@ export function LivePage(): React.ReactElement {
               onRetry={() => activeProviderId && loadChannels(activeProviderId, selectedLiveCategory || undefined)}
             />
           ) : (
-            <div className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
+            <div className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
               {isLoading
-                ? Array.from({ length: 18 }).map((_, i) => <ChannelSkeleton key={i} />)
+                ? Array.from({ length: 10 }).map((_, i) => <ChannelSkeleton key={i} />)
                 : filteredChannels.length === 0
                   ? (
                     <div className="col-span-full">
@@ -103,14 +105,27 @@ export function LivePage(): React.ReactElement {
                       />
                     </div>
                   )
-                  : filteredChannels.map((channel) => (
-                    <ChannelCard key={channel.id} channel={channel} />
+                  : filteredChannels.map((channel, index) => (
+                    <ChannelCard 
+                      key={channel.id} 
+                      channel={channel} 
+                      index={index + 1}
+                      onShowEpg={() => setEpgChannel(channel)}
+                    />
                   ))
               }
             </div>
           )}
         </div>
       </div>
+      
+      {/* EPG Modal */}
+      {epgChannel && (
+        <EpgModal 
+          channel={epgChannel} 
+          onClose={() => setEpgChannel(null)} 
+        />
+      )}
     </div>
   )
 }

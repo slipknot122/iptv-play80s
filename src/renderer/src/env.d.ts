@@ -22,6 +22,8 @@ interface Window {
     epg: {
       short: (providerId: string, channelId: string, epgId?: string) => Promise<{ success: boolean; data?: import('./lib/types').EpgProgram[]; error?: string }>
       full: (providerId: string, channelId: string, epgId?: string) => Promise<{ success: boolean; data?: import('./lib/types').EpgProgram[]; error?: string }>
+      syncXmltv: (url: string) => Promise<{ success: boolean; error?: string }>
+      getCurrentXmltvPrograms: (channelIds: string[]) => Promise<{ success: boolean; data?: Record<string, import('./lib/types').EpgProgram[]>; error?: string }>
       onProgress: (callback: (data: { status: string; percent?: number }) => void) => () => void
     }
     vod: {
@@ -35,7 +37,7 @@ interface Window {
       info: (providerId: string, seriesId: string) => Promise<{ success: boolean; data?: import('./lib/types').SeriesInfo; error?: string }>
     }
     mpv: {
-      check: () => Promise<{ isAvailable: boolean; mpvPath?: string }>
+      check: () => Promise<{ success: boolean; data?: { available: boolean; mpvPath?: string }; available?: boolean; error?: string }>
       play: (url: string, wid?: number[]) => Promise<{ success: boolean; error?: string }>
       load: (url: string) => Promise<{ success: boolean }>
       pause: (paused: boolean) => Promise<{ success: boolean }>
@@ -44,7 +46,13 @@ interface Window {
       state: () => Promise<{ success: boolean; data?: { position: number; duration: number; volume: number; paused: boolean; isRunning: boolean } }>
       stop: () => Promise<{ success: boolean }>
       geometry: (rect: {x: number, y: number, width: number, height: number}) => Promise<void>
-      onEvent: (callback: (event: { type: string; error?: string }) => void) => () => void
+      onEvent: (callback: (event: { type: string; error?: string }) => void) => Promise<() => void>
+    }
+    download: {
+      direct: (url: string, savePath: string) => Promise<{ success: boolean; error?: string }>
+      hls: (url: string, savePath: string, durationSec: number) => Promise<{ success: boolean; error?: string }>
+      cancel: (url: string) => Promise<{ success: boolean; error?: string }>
+      onProgress: (callback: (progress: any) => void) => Promise<() => void>
     }
     settings: {
       get: () => Promise<import('./lib/types').AppSettings>
@@ -61,6 +69,12 @@ interface Window {
     lastPlayed: {
       set: (data: { type: string; providerId: string; itemId: string }) => Promise<{ success: boolean }>
       get: () => Promise<{ type?: string; providerId?: string; itemId?: string }>
+    }
+    window: {
+      minimize: () => Promise<void>
+      maximize: () => Promise<void>
+      close: () => Promise<void>
+      setFullscreen: (fullscreen: boolean) => Promise<void>
     }
   }
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useUIStore } from '../../store/player.store'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -13,11 +13,14 @@ export function EpgProgressToast(): React.ReactElement | null {
   const percent = epgSyncStatus.percent ?? 0
 
   // Автоматичне приховування після завершення
-  if (isDone || isError) {
-    setTimeout(() => {
-      setEpgSyncStatus(null)
-    }, 3000)
-  }
+  useEffect(() => {
+    if (isDone || isError) {
+      const timer = setTimeout(() => {
+        setEpgSyncStatus(null)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [isDone, isError])
 
   return (
     <div className="fixed bottom-6 right-6 z-[100] animate-in slide-in-from-bottom-5 fade-in duration-300">

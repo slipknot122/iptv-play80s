@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
-import { fetch } from '@tauri-apps/plugin-http';
+import { listen } from '@tauri-apps/api/event';
 import * as store from './store';
 import { fetchAndParseM3U } from './m3u';
+import { fetch } from '@tauri-apps/plugin-http';
 
 // Helper to format provider URL
 function getProviderBaseUrl(p: import('./types').XtreamProvider): string {
@@ -18,7 +19,7 @@ function getProviderBaseUrl(p: import('./types').XtreamProvider): string {
   return baseUrl;
 }
 
-// Helper to make requests to Xtream API
+
 async function xtreamFetch(provider: any, action: string, params: Record<string, string> = {}) {
   const p = provider as import('./types').XtreamProvider;
   
@@ -36,12 +37,20 @@ async function xtreamFetch(provider: any, action: string, params: Record<string,
 
   try {
     const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    return await res.json();
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const text = await res.text();
+    return JSON.parse(text);
   } catch (err: any) {
     console.error('xtreamFetch error:', err, 'url:', url.toString());
     throw err;
   }
+}
+
+export interface DownloadProgress {
+  url: string
+  progress: number
+  downloaded: number
+  total: number
 }
 
 export const api = {
@@ -75,10 +84,13 @@ export const api = {
     seek: (position: number) => invoke('mpv_seek', { position }),
     volume: (volume: number) => invoke('mpv_volume', { volume }),
     geometry: (rect: { x: number; y: number; width: number; height: number }) => invoke('mpv_geometry', { ...rect }),
-    onEvent: (callback: any) => {
-      // Stub for now.
-      return () => {};
-    }
+    onEvent: (callback: (event: any) => void) => listen('mpv-event', (e) => callback(e.payload))
+  },
+  download: {
+    direct: (url: string, savePath: string) => invoke('download_direct', { url, savePath }),
+    hls: (url: string, savePath: string, durationSec: number) => invoke('download_hls', { url, savePath, durationSec }),
+    cancel: (url: string) => invoke('cancel_download', { url }),
+    onProgress: (callback: (progress: DownloadProgress) => void) => listen<DownloadProgress>('download-progress', (e) => callback(e.payload))
   },
   epg: {
     short: async (providerId: string, channelId: string, epgId?: string) => {
@@ -87,7 +99,13 @@ export const api = {
       if (!p || p.type !== 'xtream') return { success: false, error: 'Provider not found or not Xtream' };
       try {
         const data = await xtreamFetch(p, 'get_short_epg', { stream_id: channelId });
-        return { success: true, data: data.epg_listings || [] };
+        const mapped = (data.epg_listings || []).map((prog: any) => ({
+          title: prog.title || '',
+          description: prog.description || '',
+          startTime: prog.start_timestamp ? parseInt(prog.start_timestamp) : new Date(prog.start).getTime() / 1000,
+          endTime: prog.stop_timestamp ? parseInt(prog.stop_timestamp) : new Date(prog.end).getTime() / 1000
+        }));
+        return { success: true, data: mapped };
       } catch (err: any) {
         return { success: false, error: err.message };
       }
@@ -98,9 +116,32 @@ export const api = {
       if (!p || p.type !== 'xtream') return { success: false, error: 'Provider not found or not Xtream' };
       try {
         const data = await xtreamFetch(p, 'get_simple_data_table', { stream_id: channelId });
-        return { success: true, data: data.epg_listings || [] };
+        const mapped = (data.epg_listings || []).map((prog: any) => ({
+          title: prog.title || '',
+          description: prog.description || '',
+          startTime: prog.start_timestamp ? parseInt(prog.start_timestamp) : new Date(prog.start).getTime() / 1000,
+          endTime: prog.stop_timestamp ? parseInt(prog.stop_timestamp) : new Date(prog.end).getTime() / 1000
+        }));
+        return { success: true, data: mapped };
       } catch (err: any) {
         return { success: false, error: err.message };
+      }
+    },
+    syncXmltv: async (url: string) => {
+      try {
+        const useProxy = getProxyEnabled();
+        await invoke('sync_epg', { url, useProxy });
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: e?.message || String(e) };
+      }
+    },
+    getCurrentXmltvPrograms: async (channelIds: string[]) => {
+      try {
+        const data = await invoke('get_current_programs', { channelIds });
+        return { success: true, data };
+      } catch (e: any) {
+        return { success: false, error: e?.message || String(e) };
       }
     },
     onProgress: (callback: any) => {
@@ -115,7 +156,8 @@ export const api = {
       if (p.type === 'xtream') {
         try {
           const raw = await xtreamFetch(p, 'get_live_categories');
-          const data = raw.map((c: any) => ({
+          const rawArray = Array.isArray(raw) ? raw : Object.values(raw);
+          const data = rawArray.map((c: any) => ({
             id: String(c.category_id),
             name: c.category_name
           }));
@@ -144,15 +186,18 @@ export const api = {
       if (p.type === 'xtream') {
         try {
           const raw = await xtreamFetch(p, 'get_live_streams', { category_id: categoryId });
+          const rawArray = Array.isArray(raw) ? raw : Object.values(raw);
           const baseUrl = getProviderBaseUrl(p as import('./types').XtreamProvider);
-          const data = raw.map((c: any) => ({
+          const data = rawArray.map((c: any) => ({
             id: String(c.stream_id),
             providerId: p.id,
             name: c.name,
             logo: c.stream_icon,
             categoryId: String(c.category_id),
             streamUrl: `${baseUrl}/live/${(p as import('./types').XtreamProvider).username}/${(p as import('./types').XtreamProvider).password}/${c.stream_id}.m3u8`,
-            epgId: c.epg_channel_id
+            epgId: c.epg_channel_id,
+            hasArchive: c.tv_archive === 1,
+            archiveDays: c.tv_archive_duration ? Number(c.tv_archive_duration) / 24 : 0
           }));
           return { success: true, data };
         } catch (err: any) {
@@ -195,7 +240,8 @@ export const api = {
       const startStr = `${startObj.getFullYear()}-${String(startObj.getMonth() + 1).padStart(2, '0')}-${String(startObj.getDate()).padStart(2, '0')}:${String(startObj.getHours()).padStart(2, '0')}-${String(startObj.getMinutes()).padStart(2, '0')}`;
       
       const baseUrl = getProviderBaseUrl(xp);
-      const url = `${baseUrl}/streaming/timeshift.php?username=${xp.username}&password=${xp.password}&stream=${channelId}&start=${startStr}&duration=${durationMinutes}`;
+      // Стандартний формат Xtream Codes: /timeshift/user/pass/duration/YYYY-MM-DD:HH-MM/channel_id.m3u8
+      const url = `${baseUrl}/timeshift/${xp.username}/${xp.password}/${durationMinutes}/${startStr}/${channelId}.m3u8`;
       return { success: true, data: url };
     }
   },
@@ -207,7 +253,8 @@ export const api = {
       if (p.type === 'xtream') {
         try {
           const raw = await xtreamFetch(p, 'get_vod_categories');
-          const data = raw.map((c: any) => ({
+          const rawArray = Array.isArray(raw) ? raw : Object.values(raw);
+          const data = rawArray.map((c: any) => ({
             id: String(c.category_id),
             name: c.category_name
           }));
@@ -225,8 +272,9 @@ export const api = {
       if (p.type === 'xtream') {
         try {
           const raw = await xtreamFetch(p, 'get_vod_streams', { category_id: categoryId });
+          const rawArray = Array.isArray(raw) ? raw : Object.values(raw);
           const baseUrl = getProviderBaseUrl(p as import('./types').XtreamProvider);
-          const data = raw.map((c: any) => ({
+          const data = rawArray.map((c: any) => ({
             id: String(c.stream_id),
             providerId: p.id,
             name: c.name,
@@ -262,7 +310,8 @@ export const api = {
       if (p.type === 'xtream') {
         try {
           const raw = await xtreamFetch(p, 'get_series_categories');
-          const data = raw.map((c: any) => ({
+          const rawArray = Array.isArray(raw) ? raw : Object.values(raw);
+          const data = rawArray.map((c: any) => ({
             id: String(c.category_id),
             name: c.category_name
           }));
@@ -280,7 +329,8 @@ export const api = {
       if (p.type === 'xtream') {
         try {
           const raw = await xtreamFetch(p, 'get_series', { category_id: categoryId });
-          const data = raw.map((s: any) => ({
+          const rawArray = Array.isArray(raw) ? raw : Object.values(raw);
+          const data = rawArray.map((s: any) => ({
             id: String(s.series_id),
             providerId: p.id,
             name: s.name,

@@ -3,7 +3,7 @@ import { X, Play, Clock } from 'lucide-react'
 import { useContentStore } from '../../store/content.store'
 import { usePlayerStore } from '../../store/player.store'
 import type { EpgProgram } from '../../lib/types'
-import { cn } from '../../lib/utils'
+import { cn, decodeBase64, formatTime } from '../../lib/utils'
 
 interface EpgSidebarProps {
   channelId: string
@@ -48,7 +48,8 @@ export function EpgSidebar({ channelId, providerId, onClose }: EpgSidebarProps):
   const groupedPrograms = useMemo(() => {
     const groups: Record<string, EpgProgram[]> = {}
     programs.forEach(p => {
-      const date = new Date(p.startTime)
+      const ms = p.startTime > 9999999999 ? p.startTime : p.startTime * 1000
+      const date = new Date(ms)
       // Форматуємо дату як "Сьогодні, 18 Червня" або "17 Червня"
       const dateStr = date.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
       const isToday = new Date().toDateString() === date.toDateString()
@@ -63,16 +64,18 @@ export function EpgSidebar({ channelId, providerId, onClose }: EpgSidebarProps):
   const now = Date.now()
 
   const handlePlayArchive = async (program: EpgProgram) => {
-    if (!channel || !channel.hasArchive) return
-    const durationMinutes = Math.round((program.endTime - program.startTime) / 60000)
+    if (!channelId || !providerId) return
+    const startMs = program.startTime > 9999999999 ? program.startTime : program.startTime * 1000
+    const endMs = program.endTime > 9999999999 ? program.endTime : program.endTime * 1000
+    const durationMinutes = Math.round((endMs - startMs) / 60000)
     
     try {
-      const res = await window.api.live.catchupUrl(providerId, channelId, program.startTime, durationMinutes)
+      const res = await window.api.live.catchupUrl(providerId, channelId, startMs, durationMinutes)
       if (res.success && res.data) {
         await play({
           type: 'catchup',
           id: `${channelId}_archive_${program.startTime}`,
-          name: program.title,
+          name: decodeBase64(program.title),
           url: res.data,
           logo: channel.logo,
           providerId,
@@ -113,12 +116,14 @@ export function EpgSidebar({ channelId, providerId, onClose }: EpgSidebarProps):
               <h4 className="text-white/60 text-xs font-semibold mb-3 uppercase tracking-wider">{day}</h4>
               <div className="flex flex-col gap-3">
                 {dayPrograms.map(p => {
-                  const isPast = p.endTime < now
-                  const isCurrent = p.startTime <= now && p.endTime >= now
+                  const startMs = p.startTime > 9999999999 ? p.startTime : p.startTime * 1000
+                  const endMs = p.endTime > 9999999999 ? p.endTime : p.endTime * 1000
+                  const isPast = endMs < now
+                  const isCurrent = startMs <= now && endMs >= now
                   
                   // Чи можна дивитися архів (минуле, але в межах archiveDays)
                   const canWatchArchive = isPast && channel?.hasArchive && 
-                    (now - p.endTime <= (channel.archiveDays || 0) * 24 * 60 * 60 * 1000)
+                    (now - endMs <= (channel.archiveDays || 0) * 24 * 60 * 60 * 1000)
 
                   return (
                     <div 
@@ -131,14 +136,14 @@ export function EpgSidebar({ channelId, providerId, onClose }: EpgSidebarProps):
                     >
                       {/* Час */}
                       <div className="text-sm font-mono text-accent w-12 flex-shrink-0 pt-0.5">
-                        {new Date(p.startTime).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })}
+                        {formatTime(startMs)}
                       </div>
                       
                       {/* Інфо */}
                       <div className="flex-1 min-w-0">
-                        <div className="text-white text-sm font-medium leading-tight mb-1">{p.title}</div>
+                        <div className="text-white text-sm font-medium leading-tight mb-1" title={decodeBase64(p.title)}>{decodeBase64(p.title)}</div>
                         {p.description && (
-                          <div className="text-white/50 text-xs line-clamp-2 leading-snug">{p.description}</div>
+                          <div className="text-white/50 text-xs line-clamp-2 leading-snug" title={decodeBase64(p.description)}>{decodeBase64(p.description)}</div>
                         )}
                       </div>
 

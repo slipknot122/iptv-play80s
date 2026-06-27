@@ -63,7 +63,7 @@ export const usePlayerStore = create<PlayerStoreState>((set, get) => ({
 
     // Зберігаємо в "останній перегляд"
     await window.api.lastPlayed.set({
-      type: item.type === 'live' ? 'live' : item.type === 'movie' ? 'movie' : 'series',
+      type: (item.type === 'live' || item.type === 'catchup') ? 'live' : item.type === 'movie' ? 'movie' : 'series',
       providerId: item.providerId,
       itemId: item.id
     })
@@ -116,15 +116,26 @@ export const usePlayerStore = create<PlayerStoreState>((set, get) => ({
       }
     }
 
-    set({
-      playerState: {
-        ...get().playerState,
-        isLoading: true, // Завжди залишаємо true, поки не отримаємо подію 'play' (для mpv) або 'playing' (для hls)
-        isPlaying: false, // Аналогічно, false доки не почнеться відтворення
-        isPaused: false,
-        playerEngine: engine
-      }
-    })
+    if (engine === 'mpv') {
+      // MPV вже запущений вище — тільки встановлюємо engine
+      set({
+        playerState: {
+          ...get().playerState,
+          isPaused: false,
+          playerEngine: engine
+        }
+      })
+    } else {
+      set({
+        playerState: {
+          ...get().playerState,
+          isLoading: true,
+          isPlaying: false,
+          isPaused: false,
+          playerEngine: engine
+        }
+      })
+    }
   },
 
   stop: async () => {
